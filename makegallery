@@ -1,0 +1,193 @@
+#!/bin/bash
+
+function pause() {
+read -p ""
+}
+
+bold=$(tput bold)
+normal=$(tput sgr0)
+
+fn_makephpfiles() {
+#To Set
+templatefile="$HOME/.makegallery/templategallery.php"
+
+#To Read
+eventname=
+eventtitle=
+password=
+JJ=
+MM=
+AAAA=
+
+npicperpage=
+npictures=
+
+npages=1
+page=1
+fpic=1
+
+echo -e "\n	${bold}Bienvenue dans le bashscript de l'Amicale Dentaire de Clermont-Ferrand.${normal}
+	Cette partie du script est destinée à créer les pages .php qui permettent
+	de présenter nos photos d'événements.
+
+	${bold}Merci de prendre soin de respecter les normes d'usage :${normal}
+		- ${bold}eventname${normal} sera le nom du dossier dans lesquelles seront les photos
+		  dans le FTP
+			- bodegab70, gala69, diplome2016, ...
+		- ${bold}Nom de l'Événement${normal} sera le nom donné à l'événement
+			- Bodéga Rouge '69, Gala des 70 ans, ...
+			- PAS DE \"\$\" ou de guillemets doubles !!! (sinon quoi ils
+			  doivent être précédés d'un ANTI-SLASH
+		- ${bold}Mot de Passe${normal} respecte les mêmes règles que le nom de l'événement
+
+	${bold}Ces cinq variables doivent être uniquement numériques :${normal}
+		- ${bold}JJ${normal} correspond au jour du mois (08, 14, 25...)
+		- ${bold}MM${normal} correspond au mois (01, 04, 11...)
+		- ${bold}AAAA${normal} correspond à l'année
+		- ${bold}Le Nombre Total de Photos${normal} parle de lui-même... il faudra relancer
+		  --all si celui-ci est modifié dans le futur, et les ré-uploader.
+		- ${bold}Le Nombre de Photos par page${normal} parle de lui-même...
+		  Si vous hésitez, rentrez \"52\".
+"
+
+read -p "event name : (ie gala69, bodegab70...) : " eventname
+read -p "event title : (ie Bodéga Rouge '70...) : " eventtitle
+read -p "password : " password
+read -p "JJ : " JJ
+read -p "MM : " MM
+read -p "AAAA : " AAAA
+read -p "Nombre total de photos : " npictures
+read -p "Nombre de photos par page : " npicperpage
+
+while (($npages*$npicperpage <= $npictures))
+do
+((npages++))
+done
+
+while (($page != $npages+1))
+do
+file="$eventname"p"$page".php
+echo -e "Making $file..."
+cp $templatefile $file
+
+sed -i -e "s/--CURRENTPAGE--/$page/g" "$file"
+sed -i -e "s/--EVENTNAME--/$eventname/g" "$file"
+sed -i -e "s/--PASSWORD--/$password/g" "$file"
+sed -i -e "s/--FPIC--/$fpic/g" "$file"
+sed -i -e "s/--NPICTURES--/$npictures/g" "$file"
+sed -i -e "s/--NPICPERPAGE--/$npicperpage/g" "$file"
+sed -i -e "s/--EVENTTITLE--/$eventtitle/g" "$file"
+sed -i -e "s/--JJ--/$JJ/g" "$file"
+sed -i -e "s/--MM--/$MM/g" "$file"
+sed -i -e "s/--AAAA--/$AAAA/g" "$file"
+
+
+((page++))
+((fpic = fpic +  npicperpage))
+
+done
+}
+
+fn_makejpgpictures() {
+BASEDIR="$PWD"
+TIMESTART=$(date +"%r")
+mkdir -p .tmp/HD
+mkdir -p .tmp/LD
+
+echo -e "On s'assure que les fichiers n'aient pas le nom qu'on veut leur donner, ça fou la merde"
+i=1
+cd pictures
+for file in *
+do
+mv -vf "$file" $(printf "IMAGE-NUMBER-HD-%0.3d.jpg" $i)
+((i++))
+done
+cd "$BASEDIR"
+
+echo -e "Copying pictures to HD directory..."
+cp -v pictures/* .tmp/HD
+echo -e "Copying pictures to LD directory..."
+cp -v pictures/* .tmp/LD
+
+
+
+i=1
+echo -e "Renaming HD files..."
+cd .tmp/HD
+for file in *
+do
+mv -vf "$file" $(printf "HD-%0.3d.jpg" $i)
+((i++))
+done
+cd "$BASEDIR"
+
+i=1
+echo -e "Copying & Renaming LD files..."
+cd .tmp/LD
+for file in *
+do
+mv -vf "$file" $i $(printf "%0.3d.jpg" $i)
+((i++))
+done
+cd "$BASEDIR"
+
+echo -e "\n${bold}  Now Resizing LD pictures...
+  It could take a while...\n${normal}"
+cd .tmp/LD
+for file in *
+do
+convert -verbose $file -resize '800x600' $file
+done
+echo -e ""
+cd "$BASEDIR"
+
+echo -e "Making pictures-def directory"
+NOW=$(date +"%Y%m%d-%H%M%S")
+finaldir="pictures-def-$NOW"
+mkdir -p "$finaldir"
+echo -e "Copying LD pictures in that very same directory..."
+mv -vf .tmp/LD/* "$finaldir"
+echo -e "Copying HD pictures in that very same directory..."
+mv -vf .tmp/HD/* "$finaldir"
+echo -e "Deleting .tmp directory"
+rm -r .tmp
+
+TIMEEND=$(date +"%r")
+
+echo -e "\n	>> The JOB has be done !
+	>> Directory : $finaldir
+
+	-> Started at $TIMESTART
+	-> Ended at - $TIMEEND
+"
+}
+
+fn_help() {
+echo -e "\n  ${bold}$ makegallery [OPTION]${normal} - ne peut contenir qu'un seul argument
+--------------------------------------------------------------------------
+
+	  ${bold}--help, -h${normal}
+		permet d'afficher ce menu.
+
+	  ${bold}--files, -f${normal}
+		permet de construire les fichiers .php qui contiendront les photos
+
+	  ${bold}--pictures, -p${normal}
+		permet de traiter les photos, qui doivent être impérativement contenue
+		dans un répertoire \"pictures\" du répertoire courant
+
+	  ${bold}--all, -a${normal}
+		réalise à la fois --pictures et --files
+"
+}
+
+case $1 in
+	""|--help|-h)	fn_help ;;
+	--files|-f)	fn_makephpfiles ;;	
+	--pictures|-p)	fn_makejpgpictures ;;
+	--all|-a)	fn_makephpfiles && fn_makejpgpictures ;;
+esac
+
+
+exit 0
+
