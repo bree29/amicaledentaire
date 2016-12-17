@@ -1,6 +1,6 @@
 # amicaledentaire
 
-## Installation
+## Make Gallery - Installation
 Download makegallery and put it in your path
 
     wget https://raw.githubusercontent.com/bree29/amicaledentaire/master/makegallery
