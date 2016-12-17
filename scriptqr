@@ -78,7 +78,7 @@ echo -e "<html><head><style>
 	 <img src=\"qr/$image\"/></div>
 	<h1 style=\"font-size:50px\"><center>Billet n&deg;$billet<center></h1>
 	</center></html>"  | ToHtml > ../HTMLQRCODE.html
-	wkhtmltopdf "../HTMLQRCODE.html" "$PDFDIR/QRCODES-$billet.pdf"
+	wkhtmltopdf "../HTMLQRCODE.html" "$PDFDIR/QRCODES-$billet.pdf" &>/dev/null
 ((i++))
 done
 unset i
@@ -93,17 +93,22 @@ lprfunction() { ################ INCOMPLET
 ################################### CETTE PARTIE DU SCRIPT
 ################################### EST DESTINÉE À CRÉER
 ################################### UNE OUTPUT TERMINALE
-################################### AVEC $i PAGES PAR SHEET
+################################### AVEC $printperpage PAGES PAR SHEET
 
 ################################### USAGE DE LP ???
 
 # Créer une variable sur le nombre de billet par page ?
 	# 9 per page est acceptable
-
 lpr -o number-up=$printperpage -P PDF QRCODES_PDF.pdf
-mv "$HOME/QRCODES_PDF.pdf" "$BASEDIR/QRCODES_PDF.pdf"
+echo -e "Printing in PDF ($printperpage tickets per page)..."
 
+while lpstat | grep -q ^PDF-; do
+sleep 2
+done
+echo -e "\nLa tâche d'impression PDF est terminée"
+mv "$HOME/PDF/QRCODES_PDF.pdf" "$BASEDIR/QRCODES_PDF.pdf"
 }
+
 
 
 TIMESTART=$(date +"%r")
@@ -120,7 +125,7 @@ while [[ $# -gt 0 ]]; do
         shift
         ;;
     -printper)
-	if [[ $2 = 2 || $2 = 4 || $2 = 9 ]]; then
+	if [[ $2 = 2 || $2 = 4 || $2 = 6 || $2 = 9 || $2 = 16 ]]; then
 	printper=1
 	printperpage=$2
 	else
@@ -152,11 +157,8 @@ echo -e "Arguments invalides...
 	TITLE = Titre de l'événement
 	FILE = nom du fichier contenant les entrées des QR CODES.
 	
-	[-printper {2,4,9}] = Nombre de billet par feuille A4. Défaut = 1"
+	[-printper {2,4,6,9,16}] = Nombre de billet par feuille A4. Défaut = 1"
 exit 1
 fi
-
-
-
 
 exit 0
