@@ -50,11 +50,12 @@ fn_qrcode() {
 i=1
 while read stringcode ; do
 code=$(printf "%0.3d.png" $i)
-echo -e "Generating QRCode for $stringcode --> $code"
+echo -e "Generating $code for QRCode $stringcode"
 qrencode -s 25 -l H -m 1 --output=".tmp/qr/$code" $stringcode
 ((i++))
 done < "$qrsrc"
 unset i
+echo ""
 }
 
 
@@ -81,15 +82,14 @@ echo -e "<html><head><style>
 ((i++))
 done
 unset i
-echo -e "Building PDF file from the HTML one...
-This step could take a while...."
+echo -e "Building PDF file from the HTML one..."
 pdftk "$PDFDIR"/*.pdf cat output "$BASEDIR/QRCODES_PDF.pdf"
 
 
 cd "$BASEDIR"
 }
 
-outputdocument() { ################ INCOMPLET
+lprfunction() { ################ INCOMPLET
 ################################### CETTE PARTIE DU SCRIPT
 ################################### EST DESTINÉE À CRÉER
 ################################### UNE OUTPUT TERMINALE
@@ -100,8 +100,8 @@ outputdocument() { ################ INCOMPLET
 # Créer une variable sur le nombre de billet par page ?
 	# 9 per page est acceptable
 
-i=9
-lp -o number-up=$i QRCODES.pdf QRCODES$i.pdf
+lpr -o number-up=$printperpage -P PDF QRCODES_PDF.pdf
+mv "$HOME/QRCODES_PDF.pdf" "$BASEDIR/QRCODES_PDF.pdf"
 
 }
 
@@ -119,27 +119,44 @@ while [[ $# -gt 0 ]]; do
         fi
         shift
         ;;
-    ""|*)
+    -printper)
+	if [[ $2 = 2 || $2 = 4 || $2 = 9 ]]; then
+	printper=1
+	printperpage=$2
+	else
+	printper="ERROR"
+	fi
+	;;
+    ""|*) ;;
     esac
     shift
 done
 
 
-if [[ $qrsrc != "" && $TITLE != "" ]]; then
+if [[ $qrsrc != "" && $TITLE != "" && $printper != "ERROR" ]]; then
 fn_mkdir && fn_qrcode && fn_makehtmltopdf
 fn_rmdir
+
+if [[ $printper = 1 ]]; then
+	lprfunction
+fi
+
+
 TIMEEND=$(date +'%r')
 echo -e "\n\nStart : $TIMESTART"
 echo -e "End   : $TIMEEND"
 
 else
 echo -e "Arguments invalides...
-\$ $(basename $0) [-t TITLE] [-qr FILE]
+\$ $(basename $0) -t TITLE -qr FILE [-printper {2,4,9}]
 	TITLE = Titre de l'événement
-	FILE = nom du fichier contenant les entrées des QR CODES."
-
+	FILE = nom du fichier contenant les entrées des QR CODES.
+	
+	[-printper {2,4,9}] = Nombre de billet par feuille A4. Défaut = 1"
+exit 1
 fi
+
+
+
+
 exit 0
-
-
-exit
