@@ -1,0 +1,145 @@
+#!/bin/bash
+
+function pause() {
+read -p ""
+}
+
+function ImHere() {
+echo -e "
+*******************
+** Hello World ! **
+*******************"
+}
+
+function ToHtml ()
+{
+sed 's/à/\&agrave;/g
+s/â/\&acirc;/g
+s/ä/\&auml;/g
+s/ç/\&ccedil;/g
+s/è/\&egrave;/g
+s/é/\&eacute;/g
+s/ê/\&ecirc;/g
+s/ë/\&euml;/g
+s/î/\&icirc;/g
+s/ï/\&iuml;/g
+s/ù/\&ugrave;/g
+s/ü/\&uuml;/g
+s/û/\&ucirc;/g'
+}
+
+# Vars
+BASEDIR=$PWD
+QRDIR="$BASEDIR/.tmp/qr"
+PDFDIR="$BASEDIR/.tmp/pdf"
+mkqrdir="$HOME/.makeqrcodes"
+
+
+# Dirs
+fn_mkdir() {
+mkdir -p ".tmp/qr"
+mkdir -p ".tmp/pdf"
+}
+
+fn_rmdir() {
+rm -r "$BASEDIR/.tmp"
+}
+
+fn_qrcode() {
+#QRENCODE
+i=1
+while read stringcode ; do
+code=$(printf "%0.3d.png" $i)
+echo -e "Generating QRCode for $stringcode --> $code"
+qrencode -s 25 -l H -m 1 --output=".tmp/qr/$code" $stringcode
+((i++))
+done < "$qrsrc"
+unset i
+}
+
+
+fn_makehtmltopdf() {
+#HTML FILE
+i=1
+cd .tmp/qr
+
+for image in *; do
+billet=$(printf "%0.3d" $i)
+echo -e "Adding Billet n°$billet with $image to the tmp html file"
+echo -e "<html><head><style>
+  .break {
+    page-break-inside: avoid;
+	  }
+	</style></head><body>
+
+	<center><div class=\"break\"><br/>
+	<h1 style=\"font-size:100px\"><center>$TITLE<center></h1>
+	 <img src=\"qr/$image\"/></div>
+	<h1 style=\"font-size:50px\"><center>Billet n&deg;$billet<center></h1>
+	</center></html>"  | ToHtml > ../HTMLQRCODE.html
+	wkhtmltopdf "../HTMLQRCODE.html" "$PDFDIR/QRCODES-$billet.pdf"
+((i++))
+done
+unset i
+echo -e "Building PDF file from the HTML one...
+This step could take a while...."
+pdftk "$PDFDIR"/*.pdf cat output "$BASEDIR/QRCODES_PDF.pdf"
+
+
+cd "$BASEDIR"
+}
+
+outputdocument() { ################ INCOMPLET
+################################### CETTE PARTIE DU SCRIPT
+################################### EST DESTINÉE À CRÉER
+################################### UNE OUTPUT TERMINALE
+################################### AVEC $i PAGES PAR SHEET
+
+################################### USAGE DE LP ???
+
+# Créer une variable sur le nombre de billet par page ?
+	# 9 per page est acceptable
+
+i=9
+lp -o number-up=$i QRCODES.pdf QRCODES$i.pdf
+
+}
+
+
+TIMESTART=$(date +"%r")
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+    -t) 
+	TITLE=$2
+        shift 
+	;;
+    -qr)
+        if [[ -r $2 ]]; then
+	qrsrc=$2
+        fi
+        shift
+        ;;
+    ""|*)
+    esac
+    shift
+done
+
+
+if [[ $qrsrc != "" && $TITLE != "" ]]; then
+fn_mkdir && fn_qrcode && fn_makehtmltopdf
+fn_rmdir
+TIMEEND=$(date +'%r')
+echo -e "\n\nStart : $TIMESTART"
+echo -e "End   : $TIMEEND"
+
+else
+echo -e "Arguments invalides...
+\$ $(basename $0) [-t TITLE] [-qr FILE]
+	TITLE = Titre de l'événement
+	FILE = nom du fichier contenant les entrées des QR CODES."
+
+fi
+exit 0
+
+
+exit
